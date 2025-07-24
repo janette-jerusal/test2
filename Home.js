@@ -1,54 +1,83 @@
 Office.onReady(() => {
-  console.log("Office.js is ready.");
-  document.getElementById("compareBtn").addEventListener("click", handleCompare);
-});
+  document.getElementById("compareBtn").addEventListener("click", async function () {
+    const file1 = document.getElementById("file1").files[0];
+    const file2 = document.getElementById("file2").files[0];
 
-async function handleCompare() {
-  console.log("Compare button clicked.");
+    if (!file1 || !file2) {
+      alert("Please select both Excel files.");
+      return;
+    }
 
-  const file1 = document.getElementById("file1").files[0];
-  const file2 = document.getElementById("file2").files[0];
-
-  if (!file1 || !file2) {
-    console.log("One or both files are missing.");
-    alert("Please upload both Excel files.");
-    return;
-  }
-
-  try {
-    const [data1, data2] = await Promise.all([readExcelFile(file1), readExcelFile(file2)]);
-    console.log("File 1 data:", data1);
-    console.log("File 2 data:", data2);
+    const data1 = await readExcel(file1);
+    const data2 = await readExcel(file2);
 
     const results = computeSimilarities(data1, data2);
-    console.log("Similarity results:", results);
-
     populateResults(results);
-  } catch (error) {
-    console.error("Error during comparison:", error);
-  }
-}
+  });
+});
 
-function readExcelFile(file) {
+async function readExcel(file) {
   return new Promise((resolve, reject) => {
-    console.log("Reading file:", file.name);
-
     const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { type: "array" });
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const json = XLSX.utils.sheet_to_json(sheet);
-        console.log(`Parsed ${json.length} rows from ${file.name}`);
-        resolve(json);
-      } catch (err) {
-        reject(`Failed to parse ${file.name}: ${err}`);
-      }
+    reader.onload = function (e) {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, { type: "array" });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const json = XLSX.utils.sheet_to_json(sheet);
+      const cleaned = json.map(row => ({
+        id: row.ID?.toString() ?? "",
+        description: row.Description?.toString() ?? ""
+      }));
+      resolve(cleaned);
     };
-    reader.onerror = () => reject(`Failed to read ${file.name}`);
+    reader.onerror = reject;
     reader.readAsArrayBuffer(file);
   });
+}
+
+function computeTFIDF(corpus) {
+  const tfidf = [];
+  const df = {};
+  const N = corpus.length;
+
+  corpus.forEach((doc, i) => {
+    const tokens = tokenize(doc);
+    const tf = {};
+    tokens.forEach(token => {
+      tf[token] = (tf[token] || 0) + 1;
+    });
+    Object.keys(tf).forEach(term => {
+      df[term] = (df[term] || 0) + 1;
+    });
+    tfidf[i] = tf;
+  });
+
+  return tfidf.map(tf => {
+    const vector = {};
+    Object.keys(tf).forEach(term => {
+      const tfVal = tf[term];
+      const idf = Math.log(N / (1 + df[term]));
+      vector[term] = tfVal * idf;
+    });
+    return vector;
+  });
+}
+
+function tokenize(text) {
+  return text.toLowerCase().replace(/[^\w\s]/g, "").split(/\s+/).filter(Boolean);
+}
+
+function cosineSimilarity(vecA, vecB) {
+  const terms = new Set([...Object.keys(vecA), ...Object.keys(vecB)]);
+  let dot = 0, normA = 0, normB = 0;
+  terms.forEach(term => {
+    const a = vecA[term] || 0;
+    const b = vecB[term] || 0;
+    dot += a * b;
+    normA += a * a;
+    normB += b * b;
+  });
+  return dot / (Math.sqrt(normA) * Math.sqrt(normB) || 1);
 }
 
 function computeSimilarities(data1, data2) {
@@ -83,34 +112,10 @@ function computeSimilarities(data1, data2) {
   return results;
 }
 
-function cosineSimilarity(vecA, vecB) {
-  const dotProduct = vecA.reduce((sum, a, i) => sum + a * vecB[i], 0);
-  const normA = Math.sqrt(vecA.reduce((sum, a) => sum + a * a, 0));
-  const normB = Math.sqrt(vecB.reduce((sum, b) => sum + b * b, 0));
-  return dotProduct / (normA * normB || 1);
-}
-
-function computeTFIDF(corpus) {
-  const terms = new Set();
-  corpus.forEach(text => {
-    text.split(/\s+/).forEach(word => terms.add(word.toLowerCase()));
-  });
-  const termArray = Array.from(terms);
-  const termIndex = termArray.reduce((acc, term, i) => (acc[term] = i, acc), {});
-  const tfidf = corpus.map(text => {
-    const vec = Array(termArray.length).fill(0);
-    const words = text.split(/\s+/).map(w => w.toLowerCase());
-    words.forEach(word => {
-      if (termIndex.hasOwnProperty(word)) vec[termIndex[word]] += 1;
-    });
-    return vec;
-  });
-  return tfidf;
-}
-
 function populateResults(results) {
   const tbody = document.querySelector("#resultTable tbody");
   tbody.innerHTML = "";
+
   results.forEach(row => {
     const tr = document.createElement("tr");
     tr.innerHTML = `
@@ -118,8 +123,9 @@ function populateResults(results) {
       <td>${row.desc1}</td>
       <td>${row.id2}</td>
       <td>${row.desc2}</td>
-      <td>${row.similarity}</td>
+      <td>${row.similarity}%</td>
     `;
     tbody.appendChild(tr);
   });
 }
+

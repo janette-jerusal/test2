@@ -2,39 +2,70 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>User Story Similarity</title>
-  <script src="Scripts/Office/MicrosoftAjax.js" type="text/javascript"></script>
-  <script src="Scripts/Office/1/office.js" type="text/javascript"></script>
-  <link rel="stylesheet" type="text/css" href="Home.css" />
+  <title>User Story Similarity Tool</title>
+  <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script defer src="./Home.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    h2 {
+      color: #333;
+    }
+    input[type="file"] {
+      margin: 10px 0;
+    }
+    button {
+      padding: 10px 20px;
+      background-color: #0078d4;
+      color: white;
+      border: none;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    button:hover {
+      background-color: #005a9e;
+    }
+    table {
+      margin-top: 20px;
+      border-collapse: collapse;
+      width: 100%;
+    }
+    th, td {
+      padding: 8px;
+      border: 1px solid #ccc;
+      text-align: left;
+    }
+    th {
+      background-color: #f4f4f4;
+    }
+  </style>
 </head>
+<body>
+  <h2>User Story Similarity Comparison</h2>
 
-<body class="ms-Fabric">
-  <h1>User Story Similarity Checker</h1>
+  <label for="file1">Select First Excel File:</label><br />
+  <input type="file" id="file1" accept=".xlsx" /><br />
 
-  <label for="file1">Select File 1:</label><br />
-  <input type="file" id="file1" accept=".xlsx" /><br /><br />
-
-  <label for="file2">Select File 2:</label><br />
-  <input type="file" id="file2" accept=".xlsx" /><br /><br />
+  <label for="file2">Select Second Excel File:</label><br />
+  <input type="file" id="file2" accept=".xlsx" /><br />
 
   <button id="compareBtn">Compare</button>
 
-  <h2>Comparison Results</h2>
-  <table id="resultsTable" border="1">
+  <table id="resultTable">
     <thead>
       <tr>
         <th>ID 1</th>
         <th>Description 1</th>
         <th>ID 2</th>
         <th>Description 2</th>
-        <th>Similarity %</th>
+        <th>Similarity (%)</th>
       </tr>
     </thead>
-    <tbody>
-      <!-- Rows will be inserted here dynamically -->
-    </tbody>
+    <tbody></tbody>
   </table>
-
-  <script src="Home.js" type="text/javascript"></script>
 </body>
 </html>
+

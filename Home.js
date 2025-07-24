@@ -1,47 +1,54 @@
-Office.onReady(info => {
-  if (info.host === Office.HostType.Excel) {
-    document.getElementById("compareBtn").onclick = async () => {
-      try {
-        await Excel.run(async (context) => {
-          const sheet = context.workbook.worksheets.getActiveWorksheet();
-          const range = sheet.getUsedRange();
-          range.load("values");
-          await context.sync();
+Office.onReady(() => {
+  document.getElementById("compareBtn").addEventListener("click", async function () {
+    const file1 = document.getElementById("file1").files[0];
+    const file2 = document.getElementById("file2").files[0];
 
-          const data = range.values;
-          const headers = data[0].map(h => h.toString().toLowerCase());
-          const idIndex = headers.indexOf("id");
-          const descIndex = headers.indexOf("description");
+    if (!file1 || !file2) {
+      alert("Please select both Excel files.");
+      return;
+    }
 
-          if (idIndex === -1 || descIndex === -1) {
-            alert("Please ensure your sheet has 'ID' and 'Description' headers.");
-            return;
-          }
+    const data1 = await readExcel(file1);
+    const data2 = await readExcel(file2);
 
-          const entries = data.slice(1).map(row => ({
-            id: row[idIndex]?.toString() ?? "",
-            description: row[descIndex]?.toString() ?? ""
-          })).filter(d => d.id && d.description);
-
-          const results = computeSimilarities(entries, entries);
-          populateResults(results);
-        });
-      } catch (error) {
-        console.error(error);
-        alert("Error reading from Excel.");
-      }
-    };
-  }
+    const results = computeSimilarities(data1, data2);
+    populateResults(results);
+  });
 });
 
-// TF-IDF + Cosine Similarity Logic
+async function readExcel(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, { type: "array" });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const json = XLSX.utils.sheet_to_json(sheet);
+      const cleaned = json.map(row => ({
+        id: row.ID?.toString() ?? "",
+        description: row.Description?.toString() ?? ""
+      }));
+      resolve(cleaned);
+    };
+    reader.onerror = reject;
+    reader.readAsArrayBuffer(file);
+  });
+}
+
 function computeTFIDF(corpus) {
-  const tfidf = [], df = {}, N = corpus.length;
+  const tfidf = [];
+  const df = {};
+  const N = corpus.length;
+
   corpus.forEach((doc, i) => {
     const tokens = tokenize(doc);
     const tf = {};
-    tokens.forEach(token => tf[token] = (tf[token] || 0) + 1);
-    Object.keys(tf).forEach(term => df[term] = (df[term] || 0) + 1);
+    tokens.forEach(token => {
+      tf[token] = (tf[token] || 0) + 1;
+    });
+    Object.keys(tf).forEach(term => {
+      df[term] = (df[term] || 0) + 1;
+    });
     tfidf[i] = tf;
   });
 
@@ -64,7 +71,8 @@ function cosineSimilarity(vecA, vecB) {
   const terms = new Set([...Object.keys(vecA), ...Object.keys(vecB)]);
   let dot = 0, normA = 0, normB = 0;
   terms.forEach(term => {
-    const a = vecA[term] || 0, b = vecB[term] || 0;
+    const a = vecA[term] || 0;
+    const b = vecB[term] || 0;
     dot += a * b;
     normA += a * a;
     normB += b * b;
@@ -78,15 +86,18 @@ function computeSimilarities(data1, data2) {
   const results = [];
 
   for (let i = 0; i < data1.length; i++) {
-    const vec1 = tfidfVectors[i], entry1 = data1[i];
+    const vec1 = tfidfVectors[i];
+    const entry1 = data1[i];
+
     let best = { score: 0, entry2: null };
     for (let j = 0; j < data2.length; j++) {
       const vec2 = tfidfVectors[data1.length + j];
       const score = cosineSimilarity(vec1, vec2);
-      if (score > best.score && entry1.id !== data2[j].id) {
+      if (score > best.score) {
         best = { score, entry2: data2[j] };
       }
     }
+
     if (best.entry2) {
       results.push({
         id1: entry1.id,
@@ -104,6 +115,7 @@ function computeSimilarities(data1, data2) {
 function populateResults(results) {
   const tbody = document.querySelector("#resultTable tbody");
   tbody.innerHTML = "";
+
   results.forEach(row => {
     const tr = document.createElement("tr");
     tr.innerHTML = `

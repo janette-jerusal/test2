@@ -4,7 +4,6 @@
   <meta charset="utf-8" />
   <title>User Story Similarity Tool</title>
   <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script defer src="./Home.js"></script>
   <style>
     body {
@@ -13,9 +12,6 @@
     }
     h2 {
       color: #333;
-    }
-    input[type="file"] {
-      margin: 10px 0;
     }
     button {
       padding: 10px 20px;
@@ -46,13 +42,7 @@
 <body>
   <h2>User Story Similarity Comparison</h2>
 
-  <label for="file1">Select First Excel File:</label><br />
-  <input type="file" id="file1" accept=".xlsx" /><br />
-
-  <label for="file2">Select Second Excel File:</label><br />
-  <input type="file" id="file2" accept=".xlsx" /><br />
-
-  <button id="compareBtn">Compare</button>
+  <button id="compareBtn">Compare from Worksheet</button>
 
   <table id="resultTable">
     <thead>
@@ -68,4 +58,3 @@
   </table>
 </body>
 </html>
-
